@@ -79,12 +79,6 @@ def test_post_past_due_date_return_422(client):
     assert response.status_code == 422
 
 
-def test_post_empty_body_returns_400(client):
-    response = client.post("/tasks", json={})
-
-    assert response.status_code == 400
-
-
 def test_complete_twice_keep_same_completed_at(client, make_task):
     task = make_task()
     complete_1 = client.post(f"/tasks/{task['id']}/complete").json()

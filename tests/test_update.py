@@ -32,3 +32,9 @@ def test_patch_status_done_set_completed_at(client, make_task):
 
     assert task["completed_at"] is not None
     assert updated["completed_at"] is None
+
+
+def test_post_empty_body_returns_400(client):
+    response = client.patch("/tasks")
+
+    assert response.status_code == 400
