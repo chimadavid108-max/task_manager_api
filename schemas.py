@@ -82,3 +82,13 @@ class TaskOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     completed_at: datetime | None
+
+
+class StatsOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    total: int
+    by_status: dict[str, int]
+    by_priority: dict[str, int]
+    overdue: int
+    completion_rate: float
