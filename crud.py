@@ -1,13 +1,28 @@
 from datetime import date
 from sqlalchemy import func, or_, case
 from sqlalchemy.orm import Session
-from sqlalchemy.util import b
 from config import LIST_LIMIT, LIST_OFFSET
 from exceptions import EmptyUpdateError, TaskNotFoundError
 from models import Task
 from schemas import TaskCreate, TaskUpdate
 
-priority_order = case({"high": 1, "medium": 2, "low": 3}, value=Task.priority, else_=4)
+
+def _ordering_query(sort_by, order):
+    if sort_by == "priority":
+        sort_column = case(
+            {"high": 1, "medium": 2, "low": 3}, value=Task.priority, else_=4
+        )
+    elif sort_by == "due_date":
+        sort_column = Task.due_date
+    else:
+        sort_column = Task.created_at
+
+    if order == "desc":
+        primary_sort = sort_column.desc().nulls_last()
+    else:
+        primary_sort = sort_column.asc().nulls_last()
+
+    return primary_sort
 
 
 def create_task(db: Session, data: TaskCreate) -> Task:
@@ -32,6 +47,8 @@ def list_tasks(
     priority: str | None = None,
     offset: int = LIST_OFFSET,
     limit: int = LIST_LIMIT,
+    sort_by: str = "created_at",
+    order: str = "desc",
 ) -> list[Task]:
     pattern = f"%{q}%"
     query = db.query(Task)
@@ -46,12 +63,7 @@ def list_tasks(
         query = query.filter(Task.priority == priority)
 
     return (
-        query.order_by(
-            priority_order.asc(),
-            Task.due_date.nulls_last(),
-            Task.created_at.desc(),
-            Task.id.desc(),
-        )
+        query.order_by(_ordering_query(sort_by, order), Task.id.desc())
         .offset(offset)
         .limit(limit)
         .all()
@@ -99,33 +111,31 @@ def overdue_tasks(
 ) -> list[Task]:
     query = (
         db.query(Task)
-        .filter(Task.due_date is not None)
         .filter(Task.due_date < date.today())
-        .filter(Task.status != "done")
+        .filter(Task.status.is_not("done"))
     )
     return query.order_by(Task.due_date.asc()).offset(offset).limit(limit).all()
 
 
 def tasks_stats(db: Session) -> dict[str, int | float | dict[str, int]]:
-    total = len(db.query(Task).all())
+    total = db.query(func.count(Task.id)).scalar() or 0
     by_status = db.query(Task.status, func.count(Task.id)).group_by(Task.status).all()
     by_priority = (
         db.query(Task.priority, func.count(Task.id)).group_by(Task.priority).all()
     )
-    overdue = len(
+    overdue = (
         db.query(Task)
-        .filter(Task.due_date is not None)
         .filter(Task.due_date < date.today())
-        .filter(Task.status != "done")
-        .all()
+        .filter(Task.status.is_not("done"))
+        .count()
     )
-    done = len(
+    done = (
         db.query(Task)
         .filter(Task.status == "done")
-        .filter(Task.completed_at is not None)
-        .all()
+        .filter(Task.completed_at.is_not(None))
+        .count()
     )
-    completion_rate = round(done / total, 2) if total == 1 and done == 1 else 0.0
+    completion_rate = round(done / total, 2) if total else 0.0
 
     return {
         "total": total,
