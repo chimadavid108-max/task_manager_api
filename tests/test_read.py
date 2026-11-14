@@ -230,3 +230,24 @@ def test_filter_with_invalid_status_returns_422_and_detail(client):
 
     assert response.status_code == 422
     assert response.json()["detail"].startswith("status:")
+
+
+def test_pignation_works(client, make_task):
+    make_task(title="task 1")
+    make_task(title="task 2")
+    make_task(title="task 3")
+    make_task(title="task 4")
+    make_task(title="task 5")
+
+    data = client.get("/tasks?limit=2&offset=2").json()
+
+    assert data[0]["title"] == "task 3"
+    assert data[1]["title"] == "task 2"
+
+
+def test_search_query_return_task_with_query_in_description(client, make_task):
+    make_task(title="wow", description="keep going")
+
+    data = client.get("/tasks?q=going").json()
+
+    assert data[0]["title"] == "wow"

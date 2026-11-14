@@ -54,3 +54,17 @@ def test_patch_with_past_due_date_returns_422(client, make_task):
     )
 
     assert response.status_code == 422
+
+
+def test_patch_complete_with_unknown_id_returns_404(client):
+    response = client.post("/tasks/999/complete")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Task 999 not found"
+
+
+def test_patch_reopen_with_unknown_id_returns_404(client):
+    response = client.post("/tasks/999/reopen")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Task 999 not found"
