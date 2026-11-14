@@ -2,6 +2,8 @@ from typing import Literal
 from datetime import datetime, date
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 
+# sir pleas i don't know how to do that error shape thing. I NEED HELP SIR. THANK YOU FOR TRAINING ME TO TRY NEW GOOD THINGS.
+
 
 def _strip(value: str | None) -> str | None:
     return value.strip() if isinstance(value, str) else value

@@ -91,3 +91,10 @@ def test_post_with_status_done_has_completed_at_set(make_task):
     task = make_task(status="done")
 
     assert task["completed_at"] is not None
+
+
+def test_post_with_blank_title_returns_422_and_detail(client):
+    response = client.post("/tasks", json={"title": ""})
+
+    assert response.status_code == 422
+    assert response.json()["detail"].startswith("title:")

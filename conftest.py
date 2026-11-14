@@ -1,4 +1,5 @@
 import pytest
+from datetime import date
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -46,3 +47,19 @@ def make_task(client):
         return response.json()
 
     return _make_task
+
+
+@pytest.fixture
+def make_overdue_task(db_session):
+    def _make(days=3, **overrides):
+        fields = {
+            "title": "overdue task",
+            "due_date": date.today() - timedelta(days=days),
+            **overrides,
+        }
+        task = models.Task(**fields)
+        db_session.add(task)
+        db_session.commit()
+        db_session.refresh(task)
+        return task
+    return _make

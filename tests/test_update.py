@@ -34,7 +34,17 @@ def test_patch_status_done_set_completed_at(client, make_task):
     assert updated["completed_at"] is None
 
 
-def test_post_empty_body_returns_400(client):
-    response = client.patch("/tasks")
+def test_patch_empty_body_returns_400(client, make_task):
+    task = make_task()
+    response = client.patch(f"/tasks/{task['id']}", json={})
 
     assert response.status_code == 400
+    assert response.json()["detail"] == "No fields to update"
+
+
+def test_patch_with_past_due_date_returns_422(client, make_task):
+    task = make_task()
+
+    response = client.patch(f"/tasks/{task['id']}")
+
+    assert response.status_code == 422

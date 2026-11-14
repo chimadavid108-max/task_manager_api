@@ -1,3 +1,4 @@
+from datetime import date, timedelta
 import time
 
 
@@ -23,12 +24,16 @@ def test_get_unexisting_task_returns_404_and_body(client):
 
 
 def test_no_filter_returns_every_tasks(client, make_task):
-    for i in range(1, 6):
-        make_task(title=f"Task {i}")
+    make_task(priority="low")
+    make_task(priority="high")
+    make_task()
 
-    data = client.get("/tasks").json()
+    data = client.get("/tasks?sort_by=priority&order=desc").json()
 
-    assert len(data) == 5
+    assert len(data) == 3
+    assert data[0]["priority"] == "high"
+    assert data[1]["priority"] == "medium"
+    assert data[2]["priority"] == "low"
 
 
 def test_get_tasks_filtered_by_status(client, make_task):
@@ -117,9 +122,16 @@ def test_overdue_exclude_no_date_task(client, make_task):
     assert len(data) == 0
 
 
-def test_overdue_order_shows_first_overdue_task(client, make_task):
-    # how do i create a past date when pydantic refuse, and i saw tge idea you agev me. But that means i will create a create_overdue endpoint for the test, because you can only add in crud
-    pass
+def test_get_overdue_only_returns_overdue_tasks(client, make_task, make_overdue_task):
+    make_overdue_task()
+    make_overdue_task(status="done")
+    make_task(due_date=(date.today() + timedelta(days=3)).isoformat())
+    make_task(due_date=None)
+
+    data = client.get("/tasks/overdue").json()
+
+    assert len(data) == 1
+    assert data[0]["due_date"] == (date.today() + timedelta(days=3)).isoformat()
 
 
 def test_get_overdue_does_not_return_422(client):
@@ -127,6 +139,18 @@ def test_get_overdue_does_not_return_422(client):
 
     assert response.status_code == 200
     assert response.status_code != 422
+
+
+def test_overdue_sort_by_most_overdue(client, make_overdue_task):
+    make_overdue_task(days=10)
+    make_overdue_task(days=3)
+    make_overdue_task(days=5)
+
+    data = client.get("/tasks/overdue").json()
+
+    assert data[0]["due_date"] == date.today() + timedelta(days=10)
+    assert data[0]["due_date"] == date.today() + timedelta(days=5)
+    assert data[0]["due_date"] == date.today() + timedelta(days=3)
 
 
 def test_get_stats_on_empty_database_returns_zero_to_all_values(client):
@@ -145,31 +169,31 @@ def test_get_stats_on_empty_database_returns_zero_to_all_values(client):
     assert stats["completion_rate"] == 0.0
 
 
-def test_get_stats_counts_completion_rate_correct(client, make_task):
+def test_get_stats_counts_completion_rate_correct(client, make_task, make_overdue_task):
     for _ in range(5):
         make_task(status="done", priority="high")
     for _ in range(5):
         make_task(priority="low")
+    for _ in range(3):
+        make_overdue_task()
     make_task(status="in_progress")
 
     stats = client.get("/tasks/stats").json()
     by_status = stats["by_status"]
     by_priority = stats["by_priority"]
 
-    assert stats["total"] == 11
-    assert by_status["todo"] == 5
+    assert stats["total"] == 14
+    assert by_status["todo"] == 8
     assert by_status["in_progress"] == 1
     assert by_status["done"] == 5
     assert by_priority["low"] == 5
-    assert by_priority["medium"] == 1
+    assert by_priority["medium"] == 4
     assert by_priority["high"] == 5
-    assert (
-        stats["overdue"] == 0
-    )  # 6 please help i need to know how to do this overdue thing
-    assert stats["completion_rate"] == 0.45
+    assert stats["overdue"] == 3
+    assert stats["completion_rate"] == 0.36
 
 
-def test_sort_by_nothing_use_default_created_ate_desc(client, make_task):
+def test_sort_by_nothing_use_default_created_at_desc(client, make_task):
     make_task()
     time.sleep(0.1)
     make_task(title="The last task")
@@ -188,7 +212,7 @@ def test_sort_by_and_order_queries(client, make_task):
 
     created_at = client.get("/tasks?sort_by=created_at&order=asc").json()
     due_date = client.get("/tasks?sort_by=due_date&order=desc").json()
-    priority = client.get("/tasks?sort_by=priority&order=asc").json()
+    priority = client.get("/tasks?sort_by=priority&order=desc").json()
 
     assert created_at[0]["title"] == "first task"
     assert created_at[-1]["title"] == "last task"
@@ -196,3 +220,17 @@ def test_sort_by_and_order_queries(client, make_task):
     assert due_date[-1]["title"] == "first task"
     assert priority[0]["priority"] == "high"
     assert priority[-1]["priority"] == "low"
+
+
+def test_get_health_return_ok(client):
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+
+
+def test_filter_with_invalid_status_returns_422_and_detail(client):
+    response = client.post("/tasks?status=nope")
+
+    assert response.status_code == 422
+    assert response.json()["detail"].startswith("status:")

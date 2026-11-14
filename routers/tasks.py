@@ -1,4 +1,4 @@
-from typing import Literal, Optional
+from typing import Literal
 from fastapi import APIRouter, Query, Depends, Response
 from sqlalchemy.orm import Session
 import crud
@@ -12,9 +12,9 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 @router.get("", response_model=list[TaskOut])
 def all_tasks(
-    q: Optional[str] = None,
+    q: str | None = None,
     status: Literal["todo", "in_progress", "done"] | None = None,
-    priority: Literal["low", "medium", "high"] | None = "medium",
+    priority: Literal["low", "medium", "high"] | None = None,
     limit: int = Query(LIST_LIMIT, ge=1, le=100),
     offset: int = Query(LIST_OFFSET, ge=0),
     sort_by: Literal["created_at", "due_date", "priority"] = "created_at",

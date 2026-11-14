@@ -10,7 +10,7 @@ from schemas import TaskCreate, TaskUpdate
 def _ordering_query(sort_by, order):
     if sort_by == "priority":
         sort_column = case(
-            {"high": 1, "medium": 2, "low": 3}, value=Task.priority, else_=4
+            {"low": 1, "medium": 2, "high": 3}, value=Task.priority, else_=4
         )
     elif sort_by == "due_date":
         sort_column = Task.due_date
@@ -119,22 +119,27 @@ def overdue_tasks(
 
 def tasks_stats(db: Session) -> dict[str, int | float | dict[str, int]]:
     total = db.query(func.count(Task.id)).scalar() or 0
+
     by_status = db.query(Task.status, func.count(Task.id)).group_by(Task.status).all()
+
     by_priority = (
         db.query(Task.priority, func.count(Task.id)).group_by(Task.priority).all()
     )
+
     overdue = (
         db.query(Task)
         .filter(Task.due_date < date.today())
         .filter(Task.status.is_not("done"))
         .count()
     )
+
     done = (
         db.query(Task)
         .filter(Task.status == "done")
         .filter(Task.completed_at.is_not(None))
         .count()
     )
+
     completion_rate = round(done / total, 2) if total else 0.0
 
     return {
