@@ -6,8 +6,8 @@ from exceptions import EmptyUpdateError, TaskNotFoundError
 from models import Task
 from schemas import TaskCreate, TaskUpdate
 
-STATUES = ("todo", "in_progress", "done")
-PRIORITY = ("low", "medium", "high")
+STATUSES = ("todo", "in_progress", "done")
+PRIORITIES = ("low", "medium", "high")
 
 
 def _ordering_query(sort_by, order):
@@ -147,8 +147,8 @@ def tasks_stats(db: Session) -> dict[str, int | float | dict[str, int]]:
 
     completion_rate = round(done / total, 2) if total else 0.0
 
-    by_status = {s: possible_by_status.get(s, 0) for s in STATUES}
-    by_priority = {p: possible_by_priority.get(p, 0) for p in PRIORITY}
+    by_status = {s: possible_by_status.get(s, 0) for s in STATUSES}
+    by_priority = {p: possible_by_priority.get(p, 0) for p in PRIORITIES}
 
     return {
         "total": total,
