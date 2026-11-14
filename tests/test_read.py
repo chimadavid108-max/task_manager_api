@@ -131,7 +131,7 @@ def test_get_overdue_only_returns_overdue_tasks(client, make_task, make_overdue_
     data = client.get("/tasks/overdue").json()
 
     assert len(data) == 1
-    assert data[0]["due_date"] == (date.today() + timedelta(days=3)).isoformat()
+    assert data[0]["due_date"] == (date.today() - timedelta(days=3)).isoformat()
 
 
 def test_get_overdue_does_not_return_422(client):
@@ -148,23 +148,21 @@ def test_overdue_sort_by_most_overdue(client, make_overdue_task):
 
     data = client.get("/tasks/overdue").json()
 
-    assert data[0]["due_date"] == date.today() + timedelta(days=10)
-    assert data[0]["due_date"] == date.today() + timedelta(days=5)
-    assert data[0]["due_date"] == date.today() + timedelta(days=3)
+    assert data[0]["due_date"] == (date.today() - timedelta(days=10)).isoformat()
+    assert data[1]["due_date"] == (date.today() - timedelta(days=5)).isoformat()
+    assert data[2]["due_date"] == (date.today() - timedelta(days=3)).isoformat()
 
 
 def test_get_stats_on_empty_database_returns_zero_to_all_values(client):
     stats = client.get("/tasks/stats").json()
-    by_status = stats["by_status"]
-    by_priority = stats["by_priority"]
 
     assert stats["total"] == 0
-    assert by_status["todo"] == 0
-    assert by_status["in_progress"] == 0
-    assert by_status["done"] == 0
-    assert by_priority["low"] == 0
-    assert by_priority["medium"] == 0
-    assert by_priority["high"] == 0
+    assert stats["by_status"]["todo"] == 0
+    assert stats["by_status"]["in_progress"] == 0
+    assert stats["by_status"]["done"] == 0
+    assert stats["by_priority"]["low"] == 0
+    assert stats["by_priority"]["medium"] == 0
+    assert stats["by_priority"]["high"] == 0
     assert stats["overdue"] == 0
     assert stats["completion_rate"] == 0.0
 
@@ -179,16 +177,14 @@ def test_get_stats_counts_completion_rate_correct(client, make_task, make_overdu
     make_task(status="in_progress")
 
     stats = client.get("/tasks/stats").json()
-    by_status = stats["by_status"]
-    by_priority = stats["by_priority"]
 
     assert stats["total"] == 14
-    assert by_status["todo"] == 8
-    assert by_status["in_progress"] == 1
-    assert by_status["done"] == 5
-    assert by_priority["low"] == 5
-    assert by_priority["medium"] == 4
-    assert by_priority["high"] == 5
+    assert stats["by_status"]["todo"] == 8
+    assert stats["by_status"]["in_progress"] == 1
+    assert stats["by_status"]["done"] == 5
+    assert stats["by_priority"]["low"] == 5
+    assert stats["by_priority"]["medium"] == 4
+    assert stats["by_priority"]["high"] == 5
     assert stats["overdue"] == 3
     assert stats["completion_rate"] == 0.36
 
@@ -230,7 +226,7 @@ def test_get_health_return_ok(client):
 
 
 def test_filter_with_invalid_status_returns_422_and_detail(client):
-    response = client.post("/tasks?status=nope")
+    response = client.get("/tasks?status=nope")
 
     assert response.status_code == 422
     assert response.json()["detail"].startswith("status:")

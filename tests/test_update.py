@@ -1,3 +1,6 @@
+from datetime import date, timedelta
+
+
 def test_patch_changes_only_the_changed_fields(client, make_task):
     task = make_task()
     updated = client.patch(
@@ -45,6 +48,9 @@ def test_patch_empty_body_returns_400(client, make_task):
 def test_patch_with_past_due_date_returns_422(client, make_task):
     task = make_task()
 
-    response = client.patch(f"/tasks/{task['id']}")
+    response = client.patch(
+        f"/tasks/{task['id']}",
+        json={"due_date": (date.today() - timedelta(days=3)).isoformat()},
+    )
 
     assert response.status_code == 422
