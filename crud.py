@@ -6,6 +6,9 @@ from exceptions import EmptyUpdateError, TaskNotFoundError
 from models import Task
 from schemas import TaskCreate, TaskUpdate
 
+STATUES = ("todo", "in_progress", "done")
+PRIORITY = ("low", "medium", "high")
+
 
 def _ordering_query(sort_by, order):
     if sort_by == "priority":
@@ -120,9 +123,11 @@ def overdue_tasks(
 def tasks_stats(db: Session) -> dict[str, int | float | dict[str, int]]:
     total = db.query(func.count(Task.id)).scalar() or 0
 
-    by_status = db.query(Task.status, func.count(Task.id)).group_by(Task.status).all()
+    possible_by_status = dict(
+        db.query(Task.status, func.count(Task.id)).group_by(Task.status).all()
+    )
 
-    by_priority = (
+    possible_by_priority = dict(
         db.query(Task.priority, func.count(Task.id)).group_by(Task.priority).all()
     )
 
@@ -142,10 +147,13 @@ def tasks_stats(db: Session) -> dict[str, int | float | dict[str, int]]:
 
     completion_rate = round(done / total, 2) if total else 0.0
 
+    by_status = {s: possible_by_status.get(s, 0) for s in STATUES}
+    by_priority = {p: possible_by_priority.get(p, 0) for p in PRIORITY}
+
     return {
         "total": total,
-        "by_status": dict(by_status),
-        "by_priority": dict(by_priority),
+        "by_status": by_status,
+        "by_priority": by_priority,
         "overdue": overdue,
         "completion_rate": completion_rate,
     }
